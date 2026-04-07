@@ -1,6 +1,6 @@
-const { SlashCommandBuilder, PermissionFlagsBits, ChannelType } = require('discord.js');
+import { SlashCommandBuilder, PermissionFlagsBits, ChannelType } from 'discord.js';
 
-module.exports = {
+export default {
     data: new SlashCommandBuilder()
         .setName('say')
         .setDescription('Send a message as the bot')
@@ -34,7 +34,7 @@ module.exports = {
                 ephemeral: true
             });
 
-        } catch (error) {
+        } catch {
             await interaction.reply({
                 content: 'Failed',
                 ephemeral: true
