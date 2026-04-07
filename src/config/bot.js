@@ -25,7 +25,7 @@ export const botConfig = {
     activities: [
       {
         // Text users will see (example: "Playing /help | Titan Bot").
-        name: "This is Block Heaven helper bot made by @Nahidx404",
+        name: "",
         // Activity type number (0 = Playing).
         type: 0, 
       },
