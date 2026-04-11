@@ -11,15 +11,16 @@ export default {
         )
         .addChannelOption(option =>
             option.setName('channel')
-                .setDescription('Select channel')
+                .setDescription('Select channel (optional)')
                 .addChannelTypes(ChannelType.GuildText)
-                .setRequired(true)
+                .setRequired(false)
         )
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
     async execute(interaction) {
         const text = interaction.options.getString('text');
-        const channel = interaction.options.getChannel('channel');
+        // If no channel is selected, it defaults to the current interaction channel
+        const channel = interaction.options.getChannel('channel') || interaction.channel;
 
         try {
             await channel.send({
@@ -30,13 +31,14 @@ export default {
             });
 
             await interaction.reply({
-                content: 'Sent',
+                content: `Message sent to ${channel}`,
                 ephemeral: true
             });
 
-        } catch {
+        } catch (error) {
+            console.error(error);
             await interaction.reply({
-                content: 'Failed',
+                content: 'Failed to send message. Make sure I have permission to speak in that channel!',
                 ephemeral: true
             });
         }
