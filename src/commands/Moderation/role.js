@@ -28,38 +28,26 @@ export default {
 
         try {
             const target = interaction.options.getMember("target");
-            const role = interaction.options.getRole("role");
+            const roleOption = interaction.options.getRole("role");
             const sub = interaction.options.getSubcommand();
 
-            if (!target) {
-                throw new Error("That user is not in this server.");
-            }
+            if (!target) throw new Error("That user is not in this server.");
 
-            if (role.managed) {
-                throw new Error("I cannot manage this role because it is controlled by an integration.");
-            }
+            // Force fetch the role to ensure the cache is fresh
+            const role = await interaction.guild.roles.fetch(roleOption.id);
 
+            if (role.managed) throw new Error("I cannot manage this role (Integration role).");
             if (interaction.guild.members.me.roles.highest.position <= role.position) {
                 throw new Error("I cannot manage this role because it is higher than mine.");
             }
-
-            // This line ensures Discord sees it as a proper role mention
-            const roleMention = `<@&${role.id}>`;
 
             if (sub === "add") {
                 if (target.roles.cache.has(role.id)) {
                     throw new Error(`${target.user.tag} already has the **${role.name}** role.`);
                 }
-                
                 await target.roles.add(role);
-                
                 await InteractionHelper.safeEditReply(interaction, {
-                    embeds: [
-                        successEmbed(
-                            "Role Added", 
-                            `Successfully added the ${roleMention} role to ${target}`
-                        )
-                    ]
+                    embeds: [successEmbed("Role Added", `Successfully added the ${role} role to ${target}`)]
                 });
             } 
             
@@ -67,16 +55,9 @@ export default {
                 if (!target.roles.cache.has(role.id)) {
                     throw new Error(`${target.user.tag} does not have the **${role.name}** role.`);
                 }
-
                 await target.roles.remove(role);
-
                 await InteractionHelper.safeEditReply(interaction, {
-                    embeds: [
-                        successEmbed(
-                            "Role Removed", 
-                            `Successfully removed the ${roleMention} role from ${target}`
-                        )
-                    ]
+                    embeds: [successEmbed("Role Removed", `Successfully removed the ${role} role from ${target}`)]
                 });
             }
 
