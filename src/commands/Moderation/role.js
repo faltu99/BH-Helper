@@ -27,11 +27,11 @@ export default {
         if (!deferSuccess) return;
 
         try {
-            const user = interaction.options.getMember("user");
+            const member = interaction.options.getMember("user");
             const role = interaction.options.getRole("role");
             const sub = interaction.options.getSubcommand();
 
-            if (!user) throw new Error("That user is not in this server.");
+            if (!member) throw new Error("That user is not in this server.");
 
             if (role.managed) throw new Error("I cannot manage this role.");
             
@@ -39,40 +39,42 @@ export default {
                 throw new Error("I cannot manage this role because it is higher than mine.");
             }
 
-            // Creating a bold text version of the role name to prevent ID glitches
-            const roleDisplay = `**@${role.name}**`;
+            // Clean text formatting: No @ symbols, just bold names
+            const roleName = `**${role.name}**`;
+            const userName = `**${member.user.username}**`;
 
             if (sub === "add") {
-                if (user.roles.cache.has(role.id)) {
-                    throw new Error(`${user.user.tag} already has the ${role.name} role.`);
+                if (member.roles.cache.has(role.id)) {
+                    throw new Error(`${member.user.tag} already has the ${role.name} role.`);
                 }
                 
-                await user.roles.add(role);
+                await member.roles.add(role);
                 
                 await InteractionHelper.safeEditReply(interaction, {
-                    content: `Hey ${user}, you've been given a new role!`, 
+                    // Removed the mention from content to prevent the ping
+                    content: null, 
                     embeds: [
                         successEmbed(
                             "Role Added", 
-                            `Added ${roleDisplay} to ${user}`
+                            `Added ${roleName} to ${userName}`
                         )
                     ]
                 });
             } 
             
             else if (sub === "remove") {
-                if (!user.roles.cache.has(role.id)) {
-                    throw new Error(`${user.user.tag} does not have the ${role.name} role.`);
+                if (!member.roles.cache.has(role.id)) {
+                    throw new Error(`${member.user.tag} does not have the ${role.name} role.`);
                 }
 
-                await user.roles.remove(role);
+                await member.roles.remove(role);
 
                 await InteractionHelper.safeEditReply(interaction, {
-                    content: `Attention ${user}, a role has been removed.`,
+                    content: null,
                     embeds: [
                         successEmbed(
                             "Role Removed", 
-                            `Removed ${roleDisplay} from ${user}`
+                            `Removed ${roleName} from ${userName}`
                         )
                     ]
                 });
