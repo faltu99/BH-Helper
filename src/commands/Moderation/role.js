@@ -8,14 +8,12 @@ export default {
         .setName("role")
         .setDescription("Manage user roles")
         .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles)
-        // Subcommand: ADD
         .addSubcommand(sub =>
             sub.setName("add")
                 .setDescription("Add a role to a member")
                 .addUserOption(o => o.setName("target").setDescription("The member").setRequired(true))
                 .addRoleOption(o => o.setName("role").setDescription("The role to add").setRequired(true))
         )
-        // Subcommand: REMOVE
         .addSubcommand(sub =>
             sub.setName("remove")
                 .setDescription("Remove a role from a member")
@@ -37,19 +35,20 @@ export default {
                 throw new Error("That user is not in this server.");
             }
 
-            // Safety Check: Bot cannot manage roles created by other integrations (Twitch, Nitro, etc.)
             if (role.managed) {
                 throw new Error("I cannot manage this role because it is controlled by an integration.");
             }
 
-            // Safety Check: Role Hierarchy
             if (interaction.guild.members.me.roles.highest.position <= role.position) {
-                throw new Error("I cannot manage this role because it is higher than mine in the role list.");
+                throw new Error("I cannot manage this role because it is higher than mine.");
             }
+
+            // This line ensures Discord sees it as a proper role mention
+            const roleMention = `<@&${role.id}>`;
 
             if (sub === "add") {
                 if (target.roles.cache.has(role.id)) {
-                    throw new Error(`${target.user.tag} already has the ${role.name} role.`);
+                    throw new Error(`${target.user.tag} already has the **${role.name}** role.`);
                 }
                 
                 await target.roles.add(role);
@@ -58,7 +57,7 @@ export default {
                     embeds: [
                         successEmbed(
                             "Role Added", 
-                            `Successfully added the ${role} role to ${target}`
+                            `Successfully added the ${roleMention} role to ${target}`
                         )
                     ]
                 });
@@ -66,7 +65,7 @@ export default {
             
             else if (sub === "remove") {
                 if (!target.roles.cache.has(role.id)) {
-                    throw new Error(`${target.user.tag} does not have the ${role.name} role.`);
+                    throw new Error(`${target.user.tag} does not have the **${role.name}** role.`);
                 }
 
                 await target.roles.remove(role);
@@ -75,7 +74,7 @@ export default {
                     embeds: [
                         successEmbed(
                             "Role Removed", 
-                            `Successfully removed the ${role} role from ${target}`
+                            `Successfully removed the ${roleMention} role from ${target}`
                         )
                     ]
                 });
