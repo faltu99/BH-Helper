@@ -28,36 +28,44 @@ export default {
 
         try {
             const target = interaction.options.getMember("target");
-            const roleOption = interaction.options.getRole("role");
+            const role = interaction.options.getRole("role");
             const sub = interaction.options.getSubcommand();
 
             if (!target) throw new Error("That user is not in this server.");
 
-            // Force fetch the role to ensure the cache is fresh
-            const role = await interaction.guild.roles.fetch(roleOption.id);
-
             if (role.managed) throw new Error("I cannot manage this role (Integration role).");
+            
             if (interaction.guild.members.me.roles.highest.position <= role.position) {
                 throw new Error("I cannot manage this role because it is higher than mine.");
             }
 
+            // Using the precise Discord Mention Format
+            const roleMention = `<@&${role.id}>`;
+            const targetMention = `<@${target.id}>`;
+
             if (sub === "add") {
                 if (target.roles.cache.has(role.id)) {
-                    throw new Error(`${target.user.tag} already has the **${role.name}** role.`);
+                    throw new Error(`${target.user.tag} already has that role.`);
                 }
                 await target.roles.add(role);
                 await InteractionHelper.safeEditReply(interaction, {
-                    embeds: [successEmbed("Role Added", `Successfully added the ${role} role to ${target}`)]
+                    content: `${targetMention}`, // This triggers the notification for the user
+                    embeds: [
+                        successEmbed("Role Added", `Successfully added the ${roleMention} role to ${targetMention}`)
+                    ]
                 });
             } 
             
             else if (sub === "remove") {
                 if (!target.roles.cache.has(role.id)) {
-                    throw new Error(`${target.user.tag} does not have the **${role.name}** role.`);
+                    throw new Error(`${target.user.tag} does not have that role.`);
                 }
                 await target.roles.remove(role);
                 await InteractionHelper.safeEditReply(interaction, {
-                    embeds: [successEmbed("Role Removed", `Successfully removed the ${role} role from ${target}`)]
+                    content: `${targetMention}`, // This triggers the notification for the user
+                    embeds: [
+                        successEmbed("Role Removed", `Successfully removed the ${roleMention} role from ${targetMention}`)
+                    ]
                 });
             }
 
