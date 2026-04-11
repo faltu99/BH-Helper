@@ -11,13 +11,13 @@ export default {
         .addSubcommand(sub =>
             sub.setName("add")
                 .setDescription("Add a role to a member")
-                .addUserOption(o => o.setName("target").setDescription("The member").setRequired(true))
+                .addUserOption(o => o.setName("user").setDescription("The member").setRequired(true))
                 .addRoleOption(o => o.setName("role").setDescription("The role to add").setRequired(true))
         )
         .addSubcommand(sub =>
             sub.setName("remove")
                 .setDescription("Remove a role from a member")
-                .addUserOption(o => o.setName("target").setDescription("The member").setRequired(true))
+                .addUserOption(o => o.setName("user").setDescription("The member").setRequired(true))
                 .addRoleOption(o => o.setName("role").setDescription("The role to remove").setRequired(true))
         ),
     category: "moderation",
@@ -27,44 +27,53 @@ export default {
         if (!deferSuccess) return;
 
         try {
-            const target = interaction.options.getMember("target");
+            const user = interaction.options.getMember("user");
             const role = interaction.options.getRole("role");
             const sub = interaction.options.getSubcommand();
 
-            if (!target) throw new Error("That user is not in this server.");
+            if (!user) throw new Error("That user is not in this server.");
 
-            if (role.managed) throw new Error("I cannot manage this role (Integration role).");
+            if (role.managed) throw new Error("I cannot manage this role.");
             
             if (interaction.guild.members.me.roles.highest.position <= role.position) {
                 throw new Error("I cannot manage this role because it is higher than mine.");
             }
 
-            // Using the precise Discord Mention Format
-            const roleMention = `<@&${role.id}>`;
-            const targetMention = `<@${target.id}>`;
+            // Creating a bold text version of the role name to prevent ID glitches
+            const roleDisplay = `**@${role.name}**`;
 
             if (sub === "add") {
-                if (target.roles.cache.has(role.id)) {
-                    throw new Error(`${target.user.tag} already has that role.`);
+                if (user.roles.cache.has(role.id)) {
+                    throw new Error(`${user.user.tag} already has the ${role.name} role.`);
                 }
-                await target.roles.add(role);
+                
+                await user.roles.add(role);
+                
                 await InteractionHelper.safeEditReply(interaction, {
-                    content: `${targetMention}`, // This triggers the notification for the user
+                    content: `Hey ${user}, you've been given a new role!`, 
                     embeds: [
-                        successEmbed("Role Added", `Successfully added the ${roleMention} role to ${targetMention}`)
+                        successEmbed(
+                            "Role Added", 
+                            `Added ${roleDisplay} to ${user}`
+                        )
                     ]
                 });
             } 
             
             else if (sub === "remove") {
-                if (!target.roles.cache.has(role.id)) {
-                    throw new Error(`${target.user.tag} does not have that role.`);
+                if (!user.roles.cache.has(role.id)) {
+                    throw new Error(`${user.user.tag} does not have the ${role.name} role.`);
                 }
-                await target.roles.remove(role);
+
+                await user.roles.remove(role);
+
                 await InteractionHelper.safeEditReply(interaction, {
-                    content: `${targetMention}`, // This triggers the notification for the user
+                    content: `Attention ${user}, a role has been removed.`,
                     embeds: [
-                        successEmbed("Role Removed", `Successfully removed the ${roleMention} role from ${targetMention}`)
+                        successEmbed(
+                            "Role Removed", 
+                            `Removed ${roleDisplay} from ${user}`
+                        )
                     ]
                 });
             }
@@ -72,6 +81,7 @@ export default {
         } catch (error) {
             logger.error('Role command error:', error);
             await InteractionHelper.safeEditReply(interaction, {
+                content: null,
                 embeds: [errorEmbed("Command Failed", error.message)]
             });
         }
