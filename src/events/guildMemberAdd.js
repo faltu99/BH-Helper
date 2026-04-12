@@ -14,31 +14,35 @@ export default {
         // 1. Silent Role Assignment
         await member.roles.add(ROLE_NEWBIE).catch(e => logger.error("Role Error:", e));
 
-        // 2. Fetch the custom message you set in Discord
+        // 2. Fetch the config
         const welcomeConfig = await getWelcomeConfig(member.client, guild.id);
         const channel = guild.channels.cache.get(welcomeConfig?.channelId);
 
         if (channel?.isTextBased()) {
             let customMsg = welcomeConfig.welcomeMessage || "Welcome!";
             
-            // Replace the variables (like Carl-bot does)
+            // Replace variables (but we will use a plain mention for the actual ping)
             customMsg = customMsg
                 .replace(/{user}/g, user.toString())
                 .replace(/{username}/g, user.username)
                 .replace(/{server}/g, guild.name)
                 .replace(/{memberCount}/g, guild.memberCount);
 
-            // Create the Carl-bot style "Clean" Embed
             const embed = new EmbedBuilder()
-                .setColor('#2b2d31') // The specific "Discord Dark" color Carl uses
+                .setColor('#2b2d31') 
                 .setDescription(customMsg)
                 .setThumbnail(user.displayAvatarURL({ dynamic: true }))
                 .setFooter({ 
                     text: `Welcome to ✨BLOCK HEAVEN✨ • Member #${guild.memberCount}` 
                 });
 
-            // We send ONLY the embed. No "content" ping at the top.
-            await channel.send({ embeds: [embed] });
+            // THIS IS THE TRICK: 
+            // 'content' is the ping OUTSIDE the box (this makes the notification work)
+            // 'embeds' is the Carl-style box
+            await channel.send({ 
+                content: `Welcome ${user}!`, 
+                embeds: [embed] 
+            });
         }
     } catch (error) {
         logger.error('Error in guildMemberAdd:', error);
