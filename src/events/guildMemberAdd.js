@@ -11,33 +11,34 @@ export default {
         const { guild, user } = member;
         const ROLE_NEWBIE = '1492379204510158908';
         
-        // 1. Auto-assign role
+        // 1. Silent Role Assignment
         await member.roles.add(ROLE_NEWBIE).catch(e => logger.error("Role Error:", e));
 
-        // 2. Get the config you set via Discord
+        // 2. Fetch the custom message you set in Discord
         const welcomeConfig = await getWelcomeConfig(member.client, guild.id);
         const channel = guild.channels.cache.get(welcomeConfig?.channelId);
 
         if (channel?.isTextBased()) {
-            // This pulls the "message" you set in Discord
-            let customMsg = welcomeConfig.welcomeMessage || "Welcome to the server!";
+            let customMsg = welcomeConfig.welcomeMessage || "Welcome!";
             
-            // Replace variables like Carl-bot does
+            // Replace the variables (like Carl-bot does)
             customMsg = customMsg
                 .replace(/{user}/g, user.toString())
                 .replace(/{username}/g, user.username)
                 .replace(/{server}/g, guild.name)
                 .replace(/{memberCount}/g, guild.memberCount);
 
-            // Create a clean Carl-bot style embed
+            // Create the Carl-bot style "Clean" Embed
             const embed = new EmbedBuilder()
-                .setColor('#2b2d31') // Dark "Discord" color like Carl-bot
+                .setColor('#2b2d31') // The specific "Discord Dark" color Carl uses
                 .setDescription(customMsg)
                 .setThumbnail(user.displayAvatarURL({ dynamic: true }))
-                .setTimestamp()
-                .setFooter({ text: `Welcome to ${guild.name} • Member #${guild.memberCount}` });
+                .setFooter({ 
+                    text: `Welcome to ✨BLOCK HEAVEN✨ • Member #${guild.memberCount}` 
+                });
 
-            await channel.send({ content: `${user}`, embeds: [embed] });
+            // We send ONLY the embed. No "content" ping at the top.
+            await channel.send({ embeds: [embed] });
         }
     } catch (error) {
         logger.error('Error in guildMemberAdd:', error);
