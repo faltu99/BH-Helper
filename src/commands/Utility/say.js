@@ -1,46 +1,58 @@
-import { SlashCommandBuilder, PermissionFlagsBits, ChannelType } from 'discord.js';
+import { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder, ChannelType } from 'discord.js';
 
 export default {
     data: new SlashCommandBuilder()
         .setName('say')
-        .setDescription('Send a message as the bot')
-        .addStringOption(option =>
+        .setDescription('Make the bot speak')
+        .addStringOption(option => 
             option.setName('text')
-                .setDescription('Message to send')
-                .setRequired(true)
-        )
-        .addChannelOption(option =>
+                .setDescription('The message content')
+                .setRequired(true))
+        .addBooleanOption(option => 
+            option.setName('box-mode')
+                .setDescription('Send as an embed box? (Default: false)'))
+        .addChannelOption(option => 
             option.setName('channel')
-                .setDescription('Select channel (optional)')
-                .addChannelTypes(ChannelType.GuildText)
-                .setRequired(false)
-        )
-        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+                .setDescription('Channel to send to')
+                .addChannelTypes(ChannelType.GuildText))
+        .addStringOption(option => 
+            option.setName('reply')
+                .setDescription('ID of a message to reply to'))
+        .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages),
 
     async execute(interaction) {
-        const text = interaction.options.getString('text');
-        // If no channel is selected, it defaults to the current interaction channel
-        const channel = interaction.options.getChannel('channel') || interaction.channel;
+        const text = interaction.options.getString('text').replace(/\\n/g, '\n');
+        const boxMode = interaction.options.getBoolean('box-mode') || false;
+        const targetChannel = interaction.options.getChannel('channel') || interaction.channel;
+        const replyId = interaction.options.getString('reply');
 
         try {
-            await channel.send({
-                content: text,
-                allowedMentions: {
-                    parse: ['roles', 'users', 'everyone']
-                }
-            });
+            let messagePayload = {};
 
-            await interaction.reply({
-                content: `Message sent to ${channel}`,
-                ephemeral: true
-            });
+            // 1. Handle "Box Mode" (Embed) vs Normal Text
+            if (boxMode) {
+                const embed = new EmbedBuilder()
+                    .setColor('#2b2d31') // Carl-bot style dark color
+                    .setDescription(text);
+                messagePayload.embeds = [embed];
+            } else {
+                messagePayload.content = text;
+            }
+
+            // 2. Handle Reply Logic
+            if (replyId) {
+                messagePayload.reply = { messageReference: replyId, failIfNotExists: false };
+            }
+
+            // 3. Send the message
+            await targetChannel.send(messagePayload);
+
+            // 4. Confirm to the user (Ephemerally so it doesn't clutter)
+            return interaction.reply({ content: `✅ Message sent to ${targetChannel}!`, ephemeral: true });
 
         } catch (error) {
             console.error(error);
-            await interaction.reply({
-                content: 'Failed to send message. Make sure I have permission to speak in that channel!',
-                ephemeral: true
-            });
+            return interaction.reply({ content: "❌ Error: Make sure the message ID is correct and I have permission for that channel.", ephemeral: true });
         }
     },
 };
