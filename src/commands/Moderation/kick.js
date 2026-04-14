@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, PermissionFlagsBits, ChannelType } from 'discord.js';
+import { SlashCommandBuilder, PermissionFlagsBits } from 'discord.js';
 import { errorEmbed, successEmbed } from '../../utils/embeds.js';
 import { logModerationAction } from '../../utils/moderation.js';
 import { logger } from '../../utils/logger.js';
@@ -18,61 +18,61 @@ export default {
         .setDefaultMemberPermissions(PermissionFlagsBits.KickMembers),
     category: "moderation",
 
-    // Added 'args' to the parameters to support prefix commands
     async execute(context, args, client) {
         try {
-            const isMessage = !!context.content; // True if 'X kick' was used
+            const isMessage = !!context.content;
             const guild = context.guild;
-            const author = isMessage ? context.member : context.member;
+            const author = context.member;
             
-            // 1. Get Target User and Member
             let targetUser, member, reason;
 
             if (isMessage) {
-                // Prefix logic: X kick @user reason
-                targetUser = context.mentions.users.first() || await client.users.fetch(args[0]).catch(() => null);
-                member = context.mentions.members.first() || await guild.members.fetch(args[0]).catch(() => null);
-                reason = args.slice(1).join(" ") || "No reason provided";
+                // Find first mention that IS NOT the bot itself
+                targetUser = context.mentions.users.find(u => u.id !== client.user.id) || 
+                             await client.users.fetch(args[0]).catch(() => null);
+                             
+                member = context.mentions.members.find(m => m.id !== client.user.id) || 
+                         await guild.members.fetch(args[0]).catch(() => null);
+
+                // Calculate reason based on where the user mention/ID is in the args
+                const targetId = targetUser?.id;
+                const targetIndex = args.findIndex(arg => arg.includes(targetId));
+                reason = args.slice(targetIndex + 1).join(" ") || "No reason provided";
             } else {
-                // Slash logic
                 targetUser = context.options.getUser("target");
                 member = context.options.getMember("target");
                 reason = context.options.getString("reason") || "No reason provided";
             }
 
-            // 2. Validations
-            if (!author.permissions.has(PermissionFlagsBits.KickMembers)) {
-                throw new TitanBotError("User lacks permission", ErrorTypes.PERMISSION, "You do not have permission to kick members.");
-            }
-
+            // --- VALIDATIONS ---
             if (!targetUser) {
                 throw new TitanBotError("No user", ErrorTypes.USER_INPUT, "Please mention a valid user or provide a valid ID.");
             }
 
             if (targetUser.id === author.id) {
-                throw new TitanBotError("Cannot kick self", ErrorTypes.VALIDATION, "You cannot kick yourself.");
+                throw new TitanBotError("Validation", ErrorTypes.VALIDATION, "You cannot kick yourself.");
             }
 
             if (targetUser.id === client.user.id) {
-                throw new TitanBotError("Cannot kick bot", ErrorTypes.VALIDATION, "You cannot kick the bot.");
+                throw new TitanBotError("Validation", ErrorTypes.VALIDATION, "You cannot kick the bot.");
             }
 
             if (!member) {
-                throw new TitanBotError("Target not found", ErrorTypes.USER_INPUT, "The target user is not currently in this server.");
+                throw new TitanBotError("Not Found", ErrorTypes.USER_INPUT, "The target user is not in this server.");
             }
 
             if (author.roles.highest.position <= member.roles.highest.position && author.id !== guild.ownerId) {
-                throw new TitanBotError("Cannot kick user", ErrorTypes.PERMISSION, "You cannot kick a user with an equal or higher role than you.");
+                throw new TitanBotError("Permission", ErrorTypes.PERMISSION, "You cannot kick someone with an equal or higher role.");
             }
 
             if (!member.kickable) {
-                throw new TitanBotError("Bot cannot kick", ErrorTypes.PERMISSION, "I cannot kick this user. Check my role position.");
+                throw new TitanBotError("Permission", ErrorTypes.PERMISSION, "I cannot kick this user. Check my role hierarchy.");
             }
 
-            // 3. Action
+            // --- ACTION ---
             await member.kick(reason);
 
-            // 4. Logging
+            // --- LOGGING ---
             const caseId = await logModerationAction({
                 client,
                 guild: guild,
@@ -85,7 +85,7 @@ export default {
                 }
             });
 
-            // 5. Success Reply
+            // --- RESPONSE ---
             const success = {
                 embeds: [
                     successEmbed(
@@ -102,9 +102,11 @@ export default {
             const errorMsg = error instanceof TitanBotError ? error.message : "An unexpected error occurred.";
             const errEmbed = errorEmbed("Kick Failed", errorMsg);
             
-            return !!context.content 
-                ? context.reply({ embeds: [errEmbed] }) 
-                : InteractionHelper.universalReply(context, { embeds: [errEmbed] });
+            if (!!context.content) {
+                return context.reply({ embeds: [errEmbed] });
+            } else {
+                return InteractionHelper.universalReply(context, { embeds: [errEmbed] });
+            }
         }
     }
 };
