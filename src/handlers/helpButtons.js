@@ -80,7 +80,7 @@ async function createCategorySelectMenu() {
         { name: "🔧 **Utilities**", value: "Useful tools and server utilities", inline: true }
     );
 
-    embed.setFooter({ text: "Made with ❤️" });
+    embed.setFooter({ text: "BH help center" });
     embed.setTimestamp();
 
     const selectRow = createSelectMenu(
