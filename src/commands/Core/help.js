@@ -64,9 +64,9 @@ async function createInitialHelpMenu() {
         }),
     ];
 
+    // UPDATED: Changed Title and removed the description line
     const embed = createEmbed({ 
-        title: "🤖 TitanBot Help Center",
-        description: "Your all-in-one Discord companion for moderation, economy, fun, and server management.",
+        title: "🤖 BH Helper Help Center",
         color: 'primary'
     });
 
@@ -88,7 +88,7 @@ async function createInitialHelpMenu() {
         { name: "🔧 **Utilities**", value: "Useful tools and server utilities", inline: true }
     );
 
-    embed.setFooter({ text: "Made with ❤️" });
+    embed.setFooter({ text: "Welcome to help center" });
     embed.setTimestamp();
 
     const selectRow = createSelectMenu(
@@ -99,7 +99,7 @@ async function createInitialHelpMenu() {
 
     return {
         embeds: [embed],
-        components: [selectRow], // buttonRow removed here
+        components: [selectRow],
     };
 }
 
