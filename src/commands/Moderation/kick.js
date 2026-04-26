@@ -3,7 +3,6 @@ import { errorEmbed, successEmbed } from '../../utils/embeds.js';
 import { logModerationAction } from '../../utils/moderation.js';
 import { logger } from '../../utils/logger.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
-import { TitanBotError, ErrorTypes } from '../../utils/errorHandler.js';
 
 export default {
     data: new SlashCommandBuilder()
@@ -19,24 +18,21 @@ export default {
     category: "moderation",
 
     async execute(context, args, client) {
+        const isMessage = !!context.content;
+        const guild = context.guild;
+        const author = context.member;
+
         try {
-            const isMessage = !!context.content;
-            const guild = context.guild;
-            const author = context.member;
-            
             let targetUser, member, reason;
 
             if (isMessage) {
-                // Improved Prefix Logic: 
-                // args[0] is usually the mention or ID. 
-                // We remove it from the array to leave only the reason.
+                // Get target from mention or ID
                 targetUser = context.mentions.users.find(u => u.id !== client.user.id) || 
                              await client.users.fetch(args[0]).catch(() => null);
                              
                 member = context.mentions.members.find(m => m.id !== client.user.id) || 
                          await guild.members.fetch(args[0]).catch(() => null);
 
-                // Slice the first argument out; everything else is the reason
                 reason = args.slice(1).join(" ") || "No reason provided";
             } else {
                 targetUser = context.options.getUser("target");
@@ -44,74 +40,47 @@ export default {
                 reason = context.options.getString("reason") || "No reason provided";
             }
 
-            // --- VALIDATIONS ---
-            if (!targetUser) {
-                throw new TitanBotError("No user", ErrorTypes.USER_INPUT, "Please mention a valid user or provide a valid ID.");
+            // --- MANUAL VALIDATIONS (No external error classes needed) ---
+            if (!targetUser || !member) {
+                return context.reply({ embeds: [errorEmbed("Not Found", "I couldn't find that user in this server.")] });
             }
 
             if (targetUser.id === author.id) {
-                throw new TitanBotError("Validation", ErrorTypes.VALIDATION, "You cannot kick yourself.");
+                return context.reply({ embeds: [errorEmbed("Validation", "You cannot kick yourself.")] });
             }
 
-            if (targetUser.id === client.user.id) {
-                throw new TitanBotError("Validation", ErrorTypes.VALIDATION, "You cannot kick the bot.");
-            }
-
-            if (!member) {
-                throw new TitanBotError("Not Found", ErrorTypes.USER_INPUT, "The target user is not in this server.");
-            }
-
-            // check hierarchy 
-            if (author.id !== guild.ownerId && author.roles.highest.position <= member.roles.highest.position) {
-                throw new TitanBotError("Permission", ErrorTypes.PERMISSION, "You cannot kick someone with an equal or higher role.");
+            if (member.roles.highest.position >= author.roles.highest.position && author.id !== guild.ownerId) {
+                return context.reply({ embeds: [errorEmbed("Permission", "You cannot kick someone with an equal or higher role.")] });
             }
 
             if (!member.kickable) {
-                throw new TitanBotError("Permission", ErrorTypes.PERMISSION, "I cannot kick this user. Check my role hierarchy.");
+                return context.reply({ embeds: [errorEmbed("Permission", "I cannot kick this user. My role must be higher than theirs.")] });
             }
 
-            // --- ACTION ---
+            // --- EXECUTION ---
             await member.kick(reason);
 
-            // --- LOGGING ---
             const caseId = await logModerationAction({
                 client,
                 guild: guild,
                 event: {
                     action: "Member Kicked",
-                    target: `${targetUser.tag} (${targetUser.id})`,
-                    executor: `${author.user.tag} (${author.user.id})`,
-                    reason,
-                    metadata: { userId: targetUser.id, moderatorId: author.user.id }
+                    target: `${targetUser.tag}`,
+                    executor: `${author.user.tag}`,
+                    reason
                 }
             });
 
-            // --- RESPONSE ---
             const success = {
-                embeds: [
-                    successEmbed(
-                        `👢 **Kicked** ${targetUser.tag}`,
-                        `**Reason:** ${reason}\n**Case ID:** #${caseId}`,
-                    ),
-                ],
+                embeds: [successEmbed(`👢 Kicked ${targetUser.tag}`, `**Reason:** ${reason}\n**Case ID:** #${caseId}`)]
             };
 
             return isMessage ? context.reply(success) : InteractionHelper.universalReply(context, success);
 
         } catch (error) {
-            // Log the actual error to your terminal so you can see why it failed (Hierarchy vs Permissions)
             logger.error('Kick command error:', error);
-            
-            const errorTitle = error instanceof TitanBotError ? error.name : "Kick Failed";
-            const errorMsg = error instanceof TitanBotError ? error.message : "An unexpected error occurred. Check role hierarchy.";
-            
-            const errEmbed = errorEmbed(errorTitle, errorMsg);
-            
-            if (isMessage) {
-                return context.reply({ embeds: [errEmbed] });
-            } else {
-                return InteractionHelper.universalReply(context, { embeds: [errEmbed] });
-            }
+            const errEmbed = errorEmbed("Kick Failed", "Check my role hierarchy and permissions.");
+            return isMessage ? context.reply({ embeds: [errEmbed] }) : InteractionHelper.universalReply(context, { embeds: [errEmbed] });
         }
     }
 };
