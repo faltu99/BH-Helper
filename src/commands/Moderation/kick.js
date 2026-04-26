@@ -27,17 +27,17 @@ export default {
             let targetUser, member, reason;
 
             if (isMessage) {
-                // Find first mention that IS NOT the bot itself
+                // Improved Prefix Logic: 
+                // args[0] is usually the mention or ID. 
+                // We remove it from the array to leave only the reason.
                 targetUser = context.mentions.users.find(u => u.id !== client.user.id) || 
                              await client.users.fetch(args[0]).catch(() => null);
                              
                 member = context.mentions.members.find(m => m.id !== client.user.id) || 
                          await guild.members.fetch(args[0]).catch(() => null);
 
-                // Calculate reason based on where the user mention/ID is in the args
-                const targetId = targetUser?.id;
-                const targetIndex = args.findIndex(arg => arg.includes(targetId));
-                reason = args.slice(targetIndex + 1).join(" ") || "No reason provided";
+                // Slice the first argument out; everything else is the reason
+                reason = args.slice(1).join(" ") || "No reason provided";
             } else {
                 targetUser = context.options.getUser("target");
                 member = context.options.getMember("target");
@@ -61,7 +61,8 @@ export default {
                 throw new TitanBotError("Not Found", ErrorTypes.USER_INPUT, "The target user is not in this server.");
             }
 
-            if (author.roles.highest.position <= member.roles.highest.position && author.id !== guild.ownerId) {
+            // check hierarchy 
+            if (author.id !== guild.ownerId && author.roles.highest.position <= member.roles.highest.position) {
                 throw new TitanBotError("Permission", ErrorTypes.PERMISSION, "You cannot kick someone with an equal or higher role.");
             }
 
@@ -98,11 +99,15 @@ export default {
             return isMessage ? context.reply(success) : InteractionHelper.universalReply(context, success);
 
         } catch (error) {
+            // Log the actual error to your terminal so you can see why it failed (Hierarchy vs Permissions)
             logger.error('Kick command error:', error);
-            const errorMsg = error instanceof TitanBotError ? error.message : "An unexpected error occurred.";
-            const errEmbed = errorEmbed("Kick Failed", errorMsg);
             
-            if (!!context.content) {
+            const errorTitle = error instanceof TitanBotError ? error.name : "Kick Failed";
+            const errorMsg = error instanceof TitanBotError ? error.message : "An unexpected error occurred. Check role hierarchy.";
+            
+            const errEmbed = errorEmbed(errorTitle, errorMsg);
+            
+            if (isMessage) {
                 return context.reply({ embeds: [errEmbed] });
             } else {
                 return InteractionHelper.universalReply(context, { embeds: [errEmbed] });
