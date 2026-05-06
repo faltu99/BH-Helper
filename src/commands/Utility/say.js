@@ -8,6 +8,9 @@ export default {
             option.setName('text')
                 .setDescription('The message content')
                 .setRequired(true))
+        .addAttachmentOption(option => // New option added
+            option.setName('attachment')
+                .setDescription('Attach a file to the message'))
         .addBooleanOption(option => 
             option.setName('box-mode')
                 .setDescription('Send as an embed box? (Default: false)'))
@@ -25,6 +28,7 @@ export default {
         const boxMode = interaction.options.getBoolean('box-mode') || false;
         const targetChannel = interaction.options.getChannel('channel') || interaction.channel;
         const replyId = interaction.options.getString('reply');
+        const file = interaction.options.getAttachment('attachment'); // Fetch the attachment
 
         try {
             let messagePayload = {};
@@ -32,22 +36,27 @@ export default {
             // 1. Handle "Box Mode" (Embed) vs Normal Text
             if (boxMode) {
                 const embed = new EmbedBuilder()
-                    .setColor('#2b2d31') // Carl-bot style dark color
+                    .setColor('#2b2d31')
                     .setDescription(text);
                 messagePayload.embeds = [embed];
             } else {
                 messagePayload.content = text;
             }
 
-            // 2. Handle Reply Logic
+            // 2. Handle Attachment Logic
+            if (file) {
+                messagePayload.files = [file];
+            }
+
+            // 3. Handle Reply Logic
             if (replyId) {
                 messagePayload.reply = { messageReference: replyId, failIfNotExists: false };
             }
 
-            // 3. Send the message
+            // 4. Send the message
             await targetChannel.send(messagePayload);
 
-            // 4. Confirm to the user (Ephemerally so it doesn't clutter)
+            // 5. Confirm to the user
             return interaction.reply({ content: `✅ Message sent to ${targetChannel}!`, ephemeral: true });
 
         } catch (error) {
